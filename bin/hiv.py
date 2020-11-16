@@ -166,33 +166,6 @@ def plot_umap(adata):
     sc.pl.umap(adata, color='louvain', save='_hiv_louvain.png')
     sc.pl.umap(adata, color='subtype', save='_hiv_subtype.png')
 
-
-def analyze_pos_embed(args, model, vocabulary):
-    seqs = {}
-    for record in SeqIO.parse(
-            'data/hiv/escape_dingens2019/'
-            'Env_protalign_manualeditAD.fasta', 'fasta'):
-        seqs[record.seq] = [ { 'name': record.id } ]
-
-    seqs = embed_seqs(args, model, seqs, vocabulary, use_cache=False)
-
-    X, data = [], []
-    for seq in seqs:
-        for meta in seqs[seq]:
-            for i in range(meta['embedding'].shape[0]):
-                X.append(meta['embedding'][i])
-                data.append([ meta['name'], i, i > 500 ])
-    X = np.array(X)
-    df = pd.DataFrame(data, columns=[ 'name', 'pos', 'gp41' ])
-
-    adata = AnnData(X, obs=df)
-    sc.pp.neighbors(adata, n_neighbors=15, use_rep='X')
-    sc.tl.leiden(adata)
-    sc.tl.umap(adata)
-    sc.pl.umap(adata, color='name', save='_hiv_pos_embed.png')
-    sc.pl.umap(adata, color='leiden', save='_hiv_pos_embed_louvain.png')
-    sc.pl.umap(adata, color='gp41', save='_hiv_pos_embed_gp41.png')
-
 def analyze_embedding(args, model, seqs, vocabulary):
     sorted_seqs = np.array([ str(s) for s in sorted(seqs.keys()) ])
     batch_size = 3000
@@ -269,8 +242,6 @@ if __name__ == '__main__':
         if args.model_name in no_embed:
             raise ValueError('Embeddings not available for models: {}'
                              .format(', '.join(no_embed)))
-        analyze_pos_embed(args, model, vocabulary)
-        exit()
         analyze_embedding(args, model, seqs, vocabulary)
 
     if args.semantics:
