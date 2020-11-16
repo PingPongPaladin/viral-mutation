@@ -173,13 +173,16 @@ def batch_train(args, model, seqs, vocabulary, batch_size=5000,
               '{}-01.hdf5'.format(fname_prefix))
 
 def embed_seqs(args, model, seqs, vocabulary,
-               use_cache=False, verbose=True):
+               use_cache=False, verbose=True, namespace=None):
+    if namespace is None:
+        namespace = args.namespace
+
     X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
     if use_cache:
-        mkdir_p('target/{}/embedding'.format(args.namespace))
+        mkdir_p('target/{}/embedding'.format(namespace))
         embed_fname = ('target/{}/embedding/{}_{}.npy'
-                       .format(args.namespace, args.model_name, args.dim))
+                       .format(namespace, args.model_name, args.dim))
     else:
         embed_fname = None
 
