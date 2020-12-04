@@ -8,7 +8,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='HIV sequence analysis')
     parser.add_argument('model_name', type=str,
                         help='Type of language model (e.g., hmm, lstm)')
-    parser.add_argument('--namespace', type=str, default='hiv',
+    parser.add_argument('--namespace', type=str, default='hiv_pol',
                         help='Model namespace')
     parser.add_argument('--dim', type=int, default=512,
                         help='Embedding dimension')
