@@ -1,3 +1,5 @@
+import pandas as pd
+
 from utils import Seq, SeqIO
 
 def load_rhee2004(drug_type="PI"):
@@ -11,7 +13,7 @@ def load_rhee2004(drug_type="PI"):
     
     # load wt sequence
     records = list(SeqIO.parse(
-        "data/stanford-geno-pheno-datasets/hiv1-pol-wt.fasta",
+        "data/hiv/escape_rhee2004/hiv1-pol-wt.fasta",
         "fasta"
     ))
     assert len(records) == 1, "Expecting single wt sequence"
@@ -19,7 +21,7 @@ def load_rhee2004(drug_type="PI"):
     
     # load mutations
     df = (pd.read_csv(
-          "data/stanford-geno-pheno-datasets/drug-resistance/{}.csv"
+          "data/hiv/escape_rhee2004/drug_resistance/{}.csv"
           .format(drug_type.lower()))
           .set_index("Mutation Patterns"))
     

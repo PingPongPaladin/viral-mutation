@@ -249,11 +249,11 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
-        from escape import load_dingens2019
-        tprint('Dingens et al. 2019...')
-        seq_to_mutate, escape_seqs = load_dingens2019()
-        positions = [ escape_seqs[seq][0]['pos'] for seq in escape_seqs ]
-        min_pos, max_pos = min(positions), max(positions)
+        from escape import load_rhee2004
+        tprint('Rhee et al. 2004...')
+        # TODO: one for each of protease and reverse transcriptase
+        seq_to_mutate, escape_seqs = load_rhee2004("PI")
+        min_pos, max_pos = 54, 145 # reverse transcriptase
         analyze_semantics(
             args, model, vocabulary, seq_to_mutate, escape_seqs,
             min_pos=min_pos, max_pos=max_pos,
