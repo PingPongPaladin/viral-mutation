@@ -32,6 +32,7 @@ def load_rhee2004(drug_type="PI"):
     def mutate(seq, mutation):
         i = int(mutation[:-1])
         mutate_to = mutation[-1]
+        assert seq[i + STANFORD_TO_NCBI_OFFSET] != mutate_to
         mut_seq = seq.tomutable()
         mut_seq[i + STANFORD_TO_NCBI_OFFSET] = mutate_to
         return mut_seq.toseq()
