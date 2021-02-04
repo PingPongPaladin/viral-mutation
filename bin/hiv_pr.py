@@ -44,9 +44,8 @@ def load_meta(meta_fnames):
                     continue
                 accession = line[1:].rstrip()
                 fields = line.rstrip().split('.')
-                subtype, country, year, strain = (
-                    fields[0], fields[1], fields[2], fields[3]
-                )
+                subtype, country, year, strain = fields[:4]
+                drug_treatment = fields[5] if "stanford" in fname else "LANL"
 
                 if year == '-':
                     year = None
@@ -70,6 +69,7 @@ def load_meta(meta_fnames):
                     'country': country,
                     'year': year,
                     'strain': strain,
+                    'drug_treatment': drug_treatment
                 }
     return metas
 
@@ -165,8 +165,12 @@ def interpret_clusters(adata):
 
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
+    single_drug_adata = adata[(adata.obs["drug_treatment"] != "None") &
+                              (adata.obs["drug_treatment"] != "LANL"), :]
+    sc.pl.umap(single_drug_adata, color='drug_treatment', save='_hiv_drug_treatment.png')
     sc.pl.umap(adata, color='louvain', save='_hiv_louvain.png')
     sc.pl.umap(adata, color='subtype', save='_hiv_subtype.png')
+
 
 def populate_embedding(args, model, seqs, vocabulary,
                        use_cache=False, namespace=None):
