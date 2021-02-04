@@ -4,40 +4,39 @@ from utils import Seq, SeqIO
 
 def load_rhee2004(drug_type="PI"):
     assert drug_type in ("PI", "NRTI", "NNRTI"), "Invalid drug_type"
-
-    # to convert from sequence indices indicated at
-    #   https://hivdb.stanford.edu/pages/phenoSummary/Pheno.PI.Simple.html
-    # to wildtype sequence found at
-    #   https://www.ncbi.nlm.nih.gov/protein/NP_789740.1?report=fasta
-    STANFORD_TO_NCBI_OFFSET = 47
     
     # load wt sequence
-    records = list(SeqIO.parse(
-        "data/hiv/escape_rhee2004/hiv1-pol-wt.fasta",
-        "fasta"
-    ))
+    base_path = "/afs/csail.mit.edu/u/a/andytso/meng/viral-mutation/data/hiv/escape_rhee2004/"
+    if drug_type == "PI":
+        wt_fpath =  base_path + "hiv1-pr-wt.fasta"
+    else:
+        wt_fpath = base_path + "hiv1-rt-wt.fasta"
+    records = list(SeqIO.parse(wt_fpath, "fasta"))
     assert len(records) == 1, "Expecting single wt sequence"
     wt_seq = records[0].seq
     
     # load mutations
-    df = (pd.read_csv(
-          "data/hiv/escape_rhee2004/drug_resistance/{}.csv"
-          .format(drug_type.lower()))
+    df = (pd.read_csv(base_path + "drug_resistance/{}.csv".format(drug_type.lower()))
           .set_index("Mutation Patterns"))
     
     # filter out multi-mutations and ignore None
     df = df[~df.index.str.contains(",")]
     df = df[df.index != "None"]
     
+    # Stanford mutation indices found at
+    #   https://hivdb.stanford.edu/pages/genotype-phenotype.html
+    # are 1-based not 0-based
+    offset = 1
+    
+    # get the single-residue mutated sequence
     def mutate(seq, mutation):
         i = int(mutation[:-1])
         mutate_to = mutation[-1]
-        assert seq[i + STANFORD_TO_NCBI_OFFSET] != mutate_to
         mut_seq = seq.tomutable()
-        mut_seq[i + STANFORD_TO_NCBI_OFFSET] = mutate_to
+        mut_seq[i - offset] = mutate_to
         return mut_seq.toseq()
-    
-    # build seqs_escape where each mutation has a list of entries with fields 
+
+    # build seqs_escape where each mutation has a list of entries with fields
     # mutation, drug, fold_change, significant
     seqs_escape = {}
     for mutation, row in df.iterrows():
@@ -48,13 +47,14 @@ def load_rhee2004(drug_type="PI"):
         seqs_escape[seq] = []
         for drug in row.index[1:-2]:
             seqs_escape[seq].append({
-                "pos": int(mutation[:-1]) + STANFORD_TO_NCBI_OFFSET,
+                "pos": int(mutation[:-1]) - offset,
                 "drug": drug,
                 "resistance fold change": row[drug],
                 "significant": drug in row["Drugs Escaped"]
             })
-    
+            
     return wt_seq, seqs_escape
+
 
 def load_doud2018(survival_cutoff=0.05):
     pos_map = {}
