@@ -294,26 +294,14 @@ if __name__ == '__main__':
 
         from escape import load_rhee2004
         tprint('Rhee et al. 2004...')
-        # protease
-        pol_wt, pi_escape_seqs = load_rhee2004("PI")
+        seq_to_mutate, escape_seqs = load_rhee2004("PI")
+        min_pos = 0
+        max_pos = len(seq_to_mutate) - 1
         analyze_semantics(
-            args, model, vocabulary, pol_wt, pi_escape_seqs,
-            min_pos=54, max_pos=145,
+            args, model, vocabulary, seq_to_mutate, escape_seqs,
+            min_pos=min_pos, max_pos=max_pos,
             prob_cutoff=0., beta=1., plot_acquisition=True,
-            plot_namespace="hiv_pol_pr",
-        )
-
-        # reverse transcriptase
-        pol_wt, nrti_escape_seqs = load_rhee2004("NRTI")
-        pol_wt, nnrti_escape_seqs = load_rhee2004("NNRTI")
-        rt_escape_seqs = {**nrti_escape_seqs, **nnrti_escape_seqs}
-        assert len(nrti_escape_seqs) + len(nnrti_escape_seqs) == \
-            len(rt_escape_seqs)
-        analyze_semantics(
-            args, model, vocabulary, pol_wt, rt_escape_seqs,
-            min_pos=209, max_pos=380,
-            prob_cutoff=0., beta=1., plot_acquisition=True,
-            plot_namespace="hiv_pol_rt",
+            plot_namespace="hiv_rt"
         )
 
     if args.combfit:
