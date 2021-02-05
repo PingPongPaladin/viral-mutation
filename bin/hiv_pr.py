@@ -301,7 +301,7 @@ if __name__ == '__main__':
             args, model, vocabulary, seq_to_mutate, escape_seqs,
             min_pos=min_pos, max_pos=max_pos,
             prob_cutoff=0., beta=1., plot_acquisition=True,
-            plot_namespace="hiv_rt"
+            plot_namespace="hiv_pr"
         )
 
     if args.combfit:
