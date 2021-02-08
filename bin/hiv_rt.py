@@ -294,8 +294,9 @@ if __name__ == '__main__':
 
         from escape import load_rhee2004
         tprint('Rhee et al. 2004...')
-        # TODO: change this to union of NRTI and NNRTI
-        seq_to_mutate, escape_seqs = load_rhee2004("PI")
+        seq_to_mutate, nrti_escape_seqs = load_rhee2004("NRTI")
+        seq_to_mutate, non_nrti_escape_seqs = load_rhee2004("NNRTI")
+        escape_seqs = {**nrti_escape_seqs, **non_nrti_escape_seqs}
         min_pos = 0
         max_pos = len(seq_to_mutate) - 1
         analyze_semantics(
