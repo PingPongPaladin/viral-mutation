@@ -42,7 +42,23 @@ def load_meta(meta_fnames):
     db|UniqueIdentifier|EntryName ProteinName OS=OrganismName \
     OX=OrganismIdentifier [GN=GeneName ]PE=ProteinExistence SV=SequenceVersion
     """
-    def parse_additional_info(additional_info):
+    lineage_level_keys = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus-species']
+    additional_info_keys = [
+        "database", "accession_id",
+        "entry_name", "protein",
+        "OS", "OX", "GN", "PE", "SV"
+    ]
+    
+    def parse_lineage(lineage, lineage_levels=lineage_level_keys):
+        output = dict()
+        for level, classification in zip(lineage_levels, lineage.split("; ")):
+            output[level] = classification
+        for level in lineage_levels[len(output):]:
+            output[level] = "Unknown"
+        assert set(output.keys()) == set(lineage_level_keys)
+        return output
+    
+    def parse_additional_info(additional_info, df):
         """
         Parse additional info section of fasta header which follows
         the following format:
@@ -75,21 +91,34 @@ def load_meta(meta_fnames):
                 curr += c
         output[key] = curr
 
+        # gene name may not be provided
+        if "GN" not in output:
+            output["GN"] = "Unknown"
+        
+        lineage = df.loc[int(output["OX"]), "Lineage"]
+        output = {**output, **parse_lineage(lineage)}
         return output
+    
+    # load taxonomy id lookup table
+    fname = "/afs/csail.mit.edu/u/a/andytso/meng/data/bacterial-taxonomy-lookup-table.txt"
+    df = pd.read_csv(fname, sep='\t')
+    df = df.set_index("Taxon")
 
     metas = {}
+    keys_to_keep = lineage_level_keys + additional_info_keys
     for fname in meta_fnames:
         with open(fname) as f:
             for line in f:
                 if not line.startswith('>'):
                     continue
                 accession = line[1:].rstrip()
-                database, accession_id, additional_info = line[1:].split("|")
+                database, accession_id, additional_info = accession.split("|")
                 metas[accession] = {
                     "database": database,
                     "accession_id": accession_id,
-                    **parse_additional_info(additional_info)
+                    **parse_additional_info(additional_info, df)
                 }
+                metas[accession] = {key: metas[accession][key] for key in keys_to_keep}
     return metas
 
 def process(args, fnames, meta_fnames):
@@ -155,36 +184,71 @@ def interpret_clusters(adata):
     for cluster in clusters:
         tprint('Cluster {}'.format(cluster))
         adata_cluster = adata[adata.obs['louvain'] == cluster]
-        for var in [ 'year', 'country', 'subtype' ]:
+        for var in [ 'phylum', 'protein' ]:
             tprint('\t{}:'.format(var))
             counts = Counter(adata_cluster.obs[var])
             for val, count in counts.most_common():
                 tprint('\t\t{}: {}'.format(val, count))
         tprint('')
 
-    cluster2subtype = {}
-    for i in range(len(adata)):
-        cluster = adata.obs['louvain'][i]
-        if cluster not in cluster2subtype:
-            cluster2subtype[cluster] = []
-        cluster2subtype[cluster].append(adata.obs['subtype'][i])
-    largest_pct_subtype = []
-    for cluster in cluster2subtype:
-        count = Counter(cluster2subtype[cluster]).most_common(1)[0][1]
-        pct_subtype = float(count) / len(cluster2subtype[cluster])
-        largest_pct_subtype.append(pct_subtype)
-        tprint('\tCluster {}, largest subtype % = {}'
-               .format(cluster, pct_subtype))
-    tprint('Purity, Louvain and subtype: {}'
-           .format(np.mean(largest_pct_subtype)))
+    for attribute in [ 'phylum', 'protein' ]:
+        cluster2attribute = {}
+        for i in range(len(adata)):
+            cluster = adata.obs['louvain'][i]
+            if cluster not in cluster2attribute:
+                cluster2attribute[cluster] = []
+            cluster2attribute[cluster].append(adata.obs['subtype'][i])
+        largest_pct_attribute = []
+        for cluster in cluster2attribute:
+            count = Counter(cluster2attribute[cluster]).most_common(1)[0][1]
+            pct_attribute = float(count) / len(cluster2attribute[cluster])
+            largest_pct_attribute.append(pct_attribute)
+            tprint('\tCluster {}, largest {} % = {}'
+                   .format(cluster, attribute, pct_attribute))
+        tprint('Purity, Louvain and {}: {}'
+               .format(attribute, np.mean(largest_pct_attribute)))
 
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
-    single_drug_adata = adata[(adata.obs["drug_treatment"] != "None") &
-                              (adata.obs["drug_treatment"] != "LANL"), :]
-    sc.pl.umap(single_drug_adata, color='drug_treatment', save='_hiv_drug_treatment.png')
-    sc.pl.umap(adata, color='louvain', save='_hiv_louvain.png')
-    sc.pl.umap(adata, color='subtype', save='_hiv_subtype.png')
+    sc.pl.umap(adata, color='louvain', save='_beta_lactamase_louvain.png')
+    
+    # plot umap of top 10 most common phylum
+    most_common_phylum = [
+        'Proteobacteria',
+        'Firmicutes',
+        'Actinobacteria',
+        'Bacteroidetes',
+        'environmental samples',
+        'Cyanobacteria',
+        'Chloroflexi',
+        'Acidobacteria',
+        'Unknown',
+        'Spirochaetes'
+    ]
+    mask = np.array([False] * len(adata.obs["phylum"]))
+    for phylum in most_common_phylum:
+        mask |= (adata.obs["phylum"] == phylum)
+    filtered_phylum_adata = adata[mask, :]
+    sc.pl.umap(filtered_phylum_adata, color='phylum', save='_beta_lactamase_phylum.png')
+
+    # plot umap of top 10 most common protein
+    most_common_protein = [
+        'Beta-lactamase',
+        'Ribonuclease J',
+        'Hydroxyacylglutathione hydrolase',
+        'Beta-lactamase (Fragment)',
+        'TPR_REGION domain-containing protein',
+        'MBL fold metallo-hydrolase',
+        'Uncharacterized protein',
+        'B2 metallo-beta-lactamase',
+        'Tetratricopeptide repeat protein',
+        'Hydroxyacylglutathione hydrolase (Fragment)'
+    ]
+    mask = np.array([False] * len(adata.obs["protein"]))
+    for protein in most_common_protein:
+        mask |= (adata.obs["protein"] == protein)
+    filtered_protein_adata = adata[mask, :]
+    sc.pl.umap(filtered_protein_adata, color='protein', save='_beta_lactamase_protein.png')
 
 
 def populate_embedding(args, model, seqs, vocabulary,
