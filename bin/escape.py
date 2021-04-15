@@ -2,6 +2,80 @@ import pandas as pd
 
 from utils import Seq, SeqIO
 
+def load_russ2020(escape_criteria="escape"):
+    assert escape_criteria in ("escape", "antibiotic-resistance", "combination-resistance"), \
+        "Invalid escape_criteria"
+
+    base_path = "/afs/csail.mit.edu/u/a/andytso/meng/viral-mutation/data/beta_lactamase/escape_russ2020/"
+    
+    # load wt sequence
+    wt_fpath = base_path + "ecoli_beta_lactamase_wt.fasta"
+    records = list(SeqIO.parse(wt_fpath, "fasta"))
+    assert len(records) == 1, "Expecting single wt sequence"
+    wt_seq = records[0].seq
+    
+    # load mutations
+    df = pd.read_excel(
+        base_path + "beta_lactamase_inhibitory_concentrations.xlsx",
+        index_col="Row",
+        skiprows=[1])
+    df = df.rename_axis(index="Mutant")
+    df = df.applymap(lambda x: float(x[1:]) if isinstance(x, str) else x)
+    
+    # for alignment between russ et al. 2020 indices and that of UniProt
+    #   https://www.nature.com/articles/s41467-020-15666-2
+    #   https://www.uniprot.org/uniprot/P00811#sequences
+    offset = -15
+    
+    # get the single-residue mutated sequence
+    def mutate(seq, mutation, offset=offset):
+        """
+        mutation applied to seq where
+        mutation is of the form <aa_original><index><aa_mutated>
+        """
+        i = int(mutation[1:-1]) - offset
+        mutate_from = mutation[0]
+        mutate_to = mutation[-1]
+        assert mutate_from == seq[i]
+        
+        mut_seq = seq.tomutable()
+        mut_seq[i] = mutate_to
+        return mut_seq.toseq()
+    
+    # build seqs_escape where each mutation has a list of entries with fields
+    # mutation, drug, drug IC50, combination IC50, significant
+    seqs_escape = {}
+    for mutation, row in df.iterrows():
+        if mutation == "WT":
+            seq = wt_seq
+            index = None
+        else:
+            seq = mutate(wt_seq, mutation)
+            index = int(mutation[1:-1]) - offset
+        seqs_escape[seq] = []
+        for drug in ("PIP", "ATM", "FEP"):
+            y_label = "{}_AVI".format(drug)
+            wt_x = df.loc["WT", "{}".format(drug)]
+            wt_y = df.loc["WT", "{}_AVI".format(drug)]
+            if escape_criteria == "escape":
+                is_significant = row[drug] > wt_x and row[y_label] > wt_x
+            elif escape_criteria == "antibiotic-resistance":
+                is_significant = row[drug] > wt_x
+            elif escape_criteria == "combination-resistance":
+                is_significant = row[y_label] > wt_y
+            else:
+                raise ValueError
+            seqs_escape[seq].append({
+                "mutation": mutation,
+                "pos": index,
+                "drug": drug,
+                "drug-ic50": row[drug],
+                "combination-ic50": row[y_label],
+                "significant": is_significant
+            })
+            
+    return wt_seq, seqs_escape
+
 def load_rhee2004(drug_type="PI"):
     assert drug_type in ("PI", "NRTI", "NNRTI"), "Invalid drug_type"
     

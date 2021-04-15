@@ -371,18 +371,16 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
-        from escape import load_rhee2004
-        tprint('Rhee et al. 2004...')
-        seq_to_mutate, nrti_escape_seqs = load_rhee2004("NRTI")
-        seq_to_mutate, non_nrti_escape_seqs = load_rhee2004("NNRTI")
-        escape_seqs = {**nrti_escape_seqs, **non_nrti_escape_seqs}
+        from escape import load_russ2020
+        tprint('Russ et al. 2020...')
+        seq_to_mutate, escape_seqs = load_russ2020(escape_criteria="combination-resistance")
         min_pos = 0
         max_pos = len(seq_to_mutate) - 1
         analyze_semantics(
             args, model, vocabulary, seq_to_mutate, escape_seqs,
             min_pos=min_pos, max_pos=max_pos,
             prob_cutoff=0., beta=1., plot_acquisition=True,
-            plot_namespace="hiv_rt"
+            plot_namespace="beta_lactamase"
         )
 
     if args.combfit:
